@@ -1,0 +1,125 @@
+## Design system and component conventions
+
+Set up by `tw-design-system`. Re-running its init command replaces everything between the
+`tw-design-system` markers, so put project-specific notes outside them.
+
+Project skills in `{{SKILLS_DIR}}/` turn these rules into procedures: `create-ui-primitive`,
+`create-component`, `folder-structure` and `design-tokens`. Use them when the task matches.
+
+### Global state
+
+When something needs to be shared across distant components, put it in a React context
+(`{{SRC}}contexts/<Name>Provider.tsx`, consumed via a `use<Name>Context()` hook) rather than keeping
+it in a top-level component and prop drilling it down. Don't add Redux/Zustand/etc. unless the
+project already uses one.
+
+### UI components (`{{SRC}}components/UI/`)
+
+This folder is a small in-house UI library. When rendering a generic UI element (button, input,
+modal, textarea, card, dropdown, etc.), **first check `{{SRC}}components/UI/` and reuse what exists**.
+Don't reach for an external UI library.
+
+If the element you need has a generic UI sense (a reusable presentational primitive, not
+feature-specific markup) and it doesn't exist yet, **create it in `{{SRC}}components/UI/` following
+the pattern below**. Use feature-local markup directly only when the piece has no reusable UI sense.
+
+1. **Folder + file structure**: `{{SRC}}components/UI/<Name>/<Name>.tsx` + `{{SRC}}components/UI/<Name>/types.ts`. One folder per component, file name = folder name = component name.
+2. **Types live in `types.ts`**. Export a props interface named `I<Name>Props` plus any string-literal union types the component exposes (e.g. `ButtonSizeType`, `InputRoundedType`).
+3. **Props interface extends the native attributes of the root element** so consumers get the full HTML API for free:
+   - `<button>` → `ButtonHTMLAttributes<HTMLButtonElement>`
+   - `<input>` → `InputHTMLAttributes<HTMLInputElement>`
+   - `<textarea>` → `TextareaHTMLAttributes<HTMLTextAreaElement>`
+   - plain `<div>` → `HTMLAttributes<HTMLDivElement>`, a framework link → `ComponentProps<typeof Link>`, etc.
+4. **If the component accepts children**, wrap the native attributes in `PropsWithChildren` instead of listing it as a second interface next to them. `PropsWithChildren` takes a generic, so the other type goes inside it:
+   ```ts
+   export interface IButtonProps extends PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>> {
+     size?: ButtonSizeType;
+   }
+   ```
+   Not `extends PropsWithChildren, ButtonHTMLAttributes<HTMLButtonElement>`. If it does not accept children (e.g. `<input>`), do not use `PropsWithChildren` at all.
+
+   **If `PropsWithChildren` is the only type the component needs**, type the props inline with it and skip `types.ts` entirely:
+   ```tsx
+   const Container = ({ children }: PropsWithChildren) => <div className="...">{children}</div>;
+   ```
+5. **Do not use `FC`.** Type the destructured props object directly in the parameter list: `const Button = ({ size = "md", className = "", ...props }: IButtonProps) => { ... }`. Destructure the component's own props, leaving `...props` to spread onto the root element. `{...props}` goes on the **root element by default**, or on the **most important element when the component wraps its root** (an `Input` spreads onto the real `<input>` inside its wrapper `<div>`).
+6. **Be liberal with `*ClassName` props.** Expose a separate className prop for each meaningful structural element, named for its role: `wrapperClassName`, `labelClassName`, `iconClassName`, `menuClassName`, etc. The plain `className` is reserved for the root/most-important element so it composes with `{...props}`.
+7. **Variant props use string-literal union types** mapped to Tailwind class strings via a `Record<UnionType, string>` inside `useMemo`, with a default fallback:
+   ```ts
+   const sizeClassName = useMemo(() => {
+     const sizeMapping: Record<ButtonSizeType, string> = { sm: "px-3 py-1.5 text-sm", md: "px-4 py-2", lg: "px-6 py-3 text-lg" };
+     return sizeMapping[size] || sizeMapping.md;
+   }, [size]);
+   ```
+8. **Styling is Tailwind utility classes inline**, using the design tokens below. No CSS modules, styled-components or CSS-in-JS for UI primitives.
+
+### Styling
+
+{{TAILWIND_WIRING}} That config is where the semantic colour names live.
+
+Theme tokens therefore take **two edits**: the CSS variable in `{{BASE_CSS}}` and the colour
+mapping in `{{CONFIG_FILE}}`. Miss either and the utility class silently does nothing. A single
+`colors` entry generates `text-*`, `bg-*`, `border-*`, `ring-*`, `fill-*` and so on.
+
+`{{BASE_CSS}}` has three parts:
+1. A `:root` block of raw values: the primary scale (`--primary-50` to `--primary-900`), `--accent`, status colours, and `*-light` neutrals.
+2. A second `:root` block mapping raw values to the semantic names components use (`--background`, `--surface`, `--text-color`, `--muted-text`, `--border-color`, `--primary-hover`, `--primary-active`, `--primary-focus`, `--*-bg`).
+3. A `@media (prefers-color-scheme: dark) { :root { } }` block. When dark mode lands, add `*-dark` raw values and remap the semantic names inside it. Components only use semantic tokens, so they switch for free.
+
+Tokens available as utilities: `primary` (+ `-hover`, `-active`, `-focus`, `-50`…`-900`), `accent`
+(+ `-hover`, `-bg`), `background`, `surface`, `text-color`, `muted-text`, `border-color`,
+`success`/`warning`/`danger`/`info` (+ `danger-hover`/`danger-active` and `*-bg` tints).
+
+**Don't hardcode hex/rgb colours or use Tailwind's default palette (`blue-600`, `gray-500`, ...) in
+components; add a token instead.** Derived shades can use `color-mix(in srgb, var(--token) N%, transparent)`.
+
+### Component conventions
+
+- **UI components** (`{{SRC}}components/UI/`): generic, reusable primitives, shaped as described above. Imported by file path: `import Button from "@/components/UI/Button/Button";`.
+- **Page components**: {{ROUTING_RULE}}
+- **Page-specific components**: `{{SRC}}components/pages/{PageName}/{Component}/{Component}.tsx` (e.g. `{{SRC}}components/pages/Home/Hero/Hero.tsx`). A sub-part used by only one of them nests one level deeper: `{{SRC}}components/pages/Home/Hero/HeroIllustration/HeroIllustration.tsx`.
+- **Shared components** (`{{SRC}}components/{Name}/{Name}.tsx`): non-UI components used by more than one page (header, footer, layout). Their private parts nest inside: `{{SRC}}components/Header/MobileMenu/MobileMenu.tsx`.
+- **Data/services layer**: no fetching inside presentational components. When API calls arrive, wrap them in service functions grouped by domain and let the calling component handle the promise.
+- **Type placement**: never declare types/interfaces (props interfaces, union types, data shapes) inside a component file. Put them in a `types.ts` as close as possible to where they are used and import them. For a folder of related components, one shared `types.ts` at that folder's level is preferred (e.g. `{{SRC}}components/Header/types.ts` serving `MobileMenu` and `LanguageSwitcher`). Naming: `I{Component}Props` for props, `{Name}Type` for unions, `I{Thing}` for data shapes. `{{SRC}}types/` is only for truly global types. The one exception is a component whose only type is `PropsWithChildren`, which uses it inline (rule 4 above): that is using a React type, not declaring one.
+- **Data arrays** rendered in lists get a stable `id` per item and use it as the React `key`.
+- **Table components**: never create a generic `<Table>` in `components/UI/`. Create a context-specific `<Entity>Table` next to the page or shared component that uses it, built from native table tags and styled with tokens. Tables may own their mappings and sort/search state.
+
+### Folder structure
+
+```
+{{SRC_LABEL}}
+├── components/
+│   ├── UI/<Name>/<Name>.tsx + types.ts          generic primitives
+│   ├── <Shared>/<Shared>.tsx (+ types.ts)        used by several pages
+│   │   └── <Part>/<Part>.tsx                     private parts, one level down
+│   └── pages/<Page>/<Section>/<Section>.tsx      page-specific
+│       └── <Part>/<Part>.tsx                     deepest level allowed
+├── contexts/<Name>Provider.tsx
+├── hooks/use<Name>/index.ts (+ types.ts)
+├── utils/<topic>/index.ts
+├── constants/<topic>.ts
+├── types/<topic>.ts                              global types only
+└── styles/ (or the folder holding {{MAIN_CSS}})
+```
+
+Nest at most four levels under `components/` (`pages/<Page>/<Section>/<Part>/`). If a part needs
+its own parts, it is a section of its own or a shared component; move it up instead of nesting deeper.
+
+### No barrel files
+
+**Never create a proxy `index.ts`** whose only job is to re-export what sits next to it: no
+`components/index.ts`, no `components/UI/Button/index.ts`. Import from the file that defines the
+thing (`@/components/UI/Button/Button`, `@/components/UI/Button/types`). A barrel hides where a
+symbol lives, sends jump-to-definition to a re-export, causes import cycles, and pulls in every
+module it touches.
+
+An `index.ts` that holds real code is not a barrel: hooks (`hooks/useThing/index.ts`), utils and
+constants are written that way on purpose.
+
+### Writing style in code and copy
+
+- **Comment sparingly.** Only when the code cannot say it: a non-obvious reason, a workaround for a framework or browser quirk, a deliberate magic number. No comments restating the next line, no banner or section-divider comments, no step-by-step narration.
+- **No em dashes or en dashes** in code, comments, string literals, JSX text or UI copy. Use a comma, a period, parentheses or a colon. Hyphens in ranges and compound words are fine. Agent-facing docs (this file, anything in `{{SKILLS_DIR}}/`) are exempt.
+- **Plain words, plain punctuation.** No filler openers ("Note that", "Simply"), no marketing adjectives ("robust", "seamless", "powerful", "elegant"), no "not just X, but Y", no emoji in code.
+- **UI copy reads like a person wrote it.** No "Unlock", "Elevate", "Empower", "Supercharge", no rule-of-three adjective lists, no semicolon-chained sentences, no colon-led reveals, no dramatic ellipses or stacked exclamation marks.
+- **Match the file you are in**: comment density, tone and naming of the surrounding code.

@@ -1,0 +1,9 @@
+{
+  "name": "tw-design-system",
+  "version": "0.1.0",
+  "description": "Sets up a token-based Tailwind design system (base.css + tailwind config) and component conventions (UI primitives, types.ts placement, folder structure) in React/Next.js projects, optionally from one primary color.",
+  "author": {
+    "name": "Albert Arakelyan"
+  },
+  "keywords": ["tailwind", "design-system", "react", "nextjs", "conventions"]
+}

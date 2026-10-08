@@ -1,0 +1,15 @@
+{
+  "name": "tw-design-system",
+  "description": "Local marketplace for the tw-design-system plugin",
+  "owner": {
+    "name": "Albert Arakelyan"
+  },
+  "plugins": [
+    {
+      "name": "tw-design-system",
+      "description": "Token-based Tailwind design system and component conventions for React/Next.js projects",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
