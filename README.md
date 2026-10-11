@@ -27,27 +27,39 @@ neutrals, with a contrast report. Without a color the blocks are created empty.
 
 ## Install
 
+Source: [github.com/AlbertArakelyan/tw-design-system](https://github.com/AlbertArakelyan/tw-design-system)
+
 ### Claude Code
 
 ```
-/plugin marketplace add /path/to/tw-design-system
+/plugin marketplace add AlbertArakelyan/tw-design-system
 /plugin install tw-design-system@tw-design-system
 ```
 
-Or load it for one session: `claude --plugin-dir /path/to/tw-design-system`.
+Or from a local clone: `/plugin marketplace add ~/tw-design-system`, or load it for one session
+with `claude --plugin-dir ~/tw-design-system`.
 
-### Codex
+### Codex and OpenCode
+
+Clone the repo somewhere it can stay. The installed command points back at the clone, so moving
+or deleting it breaks the command.
 
 ```
-node /path/to/tw-design-system/scripts/install.mjs --target codex
+git clone https://github.com/AlbertArakelyan/tw-design-system.git ~/tw-design-system
+```
+
+Codex:
+
+```
+node ~/tw-design-system/scripts/install.mjs --target codex
 ```
 
 This writes a `tw-design-system-init` skill to `~/.agents/skills/`.
 
-### OpenCode
+OpenCode:
 
 ```
-node /path/to/tw-design-system/scripts/install.mjs --target opencode
+node ~/tw-design-system/scripts/install.mjs --target opencode
 ```
 
 This writes `/tw-design-system-init` to `~/.config/opencode/commands/`.
@@ -66,7 +78,7 @@ existing `base.css`, `tailwind.config.js` or skill.
 Without an agent:
 
 ```
-node /path/to/tw-design-system/scripts/setup.mjs --color "#0b44ae" --agent claude --cwd /path/to/project
+node ~/tw-design-system/scripts/setup.mjs --color "#0b44ae" --agent claude --cwd /path/to/project
 ```
 
 `--agent` decides where the conventions and skills go: `claude` writes `CLAUDE.md` and
@@ -81,6 +93,16 @@ node /path/to/tw-design-system/scripts/setup.mjs --color "#0b44ae" --agent claud
   `<!-- tw-design-system:start -->` / `<!-- tw-design-system:end -->` markers. Running it again
   replaces only that block.
 - Commit.
+
+## Updating
+
+Claude Code: `/plugin marketplace update tw-design-system`. Codex and OpenCode: `git pull` in the
+clone, then rerun `install.mjs`.
+
+## Contributing
+
+Issues and pull requests: [github.com/AlbertArakelyan/tw-design-system](https://github.com/AlbertArakelyan/tw-design-system/issues).
+See `AGENTS.md` for how the plugin is laid out. No dependencies, Node 18+ built-ins only.
 
 ## Layout
 
